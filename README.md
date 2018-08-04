@@ -1,1 +1,1 @@
-# AutoPilotENVScript
+This script is to auto provision x number of virtual machines in Hyper-V and register them to Windows AutoPilot, adds the resources to the security group which the AutoPilot policy is applied too.
