@@ -76,7 +76,7 @@ function new-clientVM {
     while ((Invoke-Command -VMName $vmname -Credential $localadmin {"Test"} -ErrorAction SilentlyContinue) -ne "Test") {Start-Sleep -Seconds 5}
     $wkssession = new-PSSession -VMName $vmname -Credential $localadmin
     $ap = Invoke-Command -Session $wkssession -ScriptBlock {Install-PackageProvider -name "nuget" -ForceBootstrap -Force | Out-Null; Install-Script -Name "get-windowsautopilotinfo" -Force; Set-ExecutionPolicy -ExecutionPolicy Bypass -Force; get-windowsautopilotinfo.ps1}
-    $ap | Select-Object 'hardware hash', 'Windows Product ID', 'Device Serial Number' | export-csv -path "$clientpath\ap.csv" -NoTypeInformation
+    $ap | Select-Object 'Device Serial Number', 'Windows Product ID', 'hardware hash' | export-csv -path "$clientpath\ap.csv" -NoTypeInformation -append
     Stop-VM -Name $vmname -TurnOff -Force
     copy-item -path $refAPVHDX -Destination "$ClientPath\$vmname.vhdx"
 }
