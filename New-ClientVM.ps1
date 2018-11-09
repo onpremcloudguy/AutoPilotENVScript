@@ -1,13 +1,14 @@
-function new-ClientVHDX {
+#region Functions
+function New-ClientVHDX {
     param
     (
-        [string]$vhdxpath,
+        [string]$vhdxPath,
         [Parameter(Mandatory = $false)]
         [string]$unattend = "none",
         [string]$WinISO
     )
-    $convmod = get-module -ListAvailable -Name 'Convert-WindowsImage'
-    if ($convmod.count -ne 1) {
+    $convMod = get-module -ListAvailable -Name 'Convert-WindowsImage'
+    if ($convMod.count -ne 1) {
         Install-Module -name 'Convert-WindowsImage' -Scope AllUsers
     }
     else {
@@ -15,10 +16,10 @@ function new-ClientVHDX {
     }
     Import-module -name 'Convert-Windowsimage'
     if ($unattend -eq "none") {
-        Convert-WindowsImage -SourcePath $WinISO -Edition 3 -VhdType Dynamic -VhdFormat VHDX -VhdPath $vhdxpath -DiskLayout UEFI -SizeBytes 127gb
+        Convert-WindowsImage -SourcePath $WinISO -Edition 3 -VhdType Dynamic -VhdFormat VHDX -VhdPath $vhdxPath -DiskLayout UEFI -SizeBytes 127gb
     }
     else {
-        Convert-WindowsImage -SourcePath $WinISO -Edition 3 -VhdType Dynamic -VhdFormat VHDX -VhdPath $vhdxpath -DiskLayout UEFI -SizeBytes 127gb -UnattendPath $unattend    
+        Convert-WindowsImage -SourcePath $WinISO -Edition 3 -VhdType Dynamic -VhdFormat VHDX -VhdPath $vhdxPath -DiskLayout UEFI -SizeBytes 127gb -UnattendPath $unattend    
     }
 }
 function Write-LogEntry {
@@ -31,107 +32,126 @@ function Write-LogEntry {
     )
     switch ($Type) {
         'Error' {
-            $Severity = 3
+            $severity = 3
+            $fgColor = "Red"
             break;
         }
         'Information' {
-            $Severity = 6
+            $severity = 6
+            $fgColour = "Yellow"
             break;
         }
     }
-    $DateTime = New-Object -ComObject WbemScripting.SWbemDateTime
-    $DateTime.SetVarDate($(Get-Date))
-    $UtcValue = $DateTime.Value
-    $UtcOffset = $UtcValue.Substring(21, $UtcValue.Length - 21)
-    $scriptname = (Get-PSCallStack)[1]
-    $logline = `
+    $dateTime = New-Object -ComObject WbemScripting.SWbemDateTime
+    $dateTime.SetVarDate($(Get-Date))
+    $utcValue = $dateTime.Value
+    $utcOffset = $utcValue.Substring(21, $utcValue.Length - 21)
+    $scriptName = (Get-PSCallStack)[1]
+    $logLine = `
         "<![LOG[$message]LOG]!>" + `
-        "<time=`"$(Get-Date -Format HH:mm:ss.fff)$($UtcOffset)`" " + `
+        "<time=`"$(Get-Date -Format HH:mm:ss.fff)$($utcOffset)`" " + `
         "date=`"$(Get-Date -Format M-d-yyyy)`" " + `
-        "component=`"$($scriptname.Command)`" " + `
+        "component=`"$($scriptName.Command)`" " + `
         "context=`"$([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)`" " + `
-        "type=`"$Severity`" " + `
+        "type=`"$severity`" " + `
         "thread=`"$PID`" " + `
-        "file=`"$($Scriptname.ScriptName)`">";
+        "file=`"$($scriptName.ScriptName)`">";
         
-    $logline | Out-File -Append -Encoding utf8 -FilePath $Logfile -Force
-    Write-Verbose $Message
+    $logLine | Out-File -Append -Encoding utf8 -FilePath $logFile -Force
+    Write-Host $Message -ForegroundColor $fgColor
 }
 
-function new-clientVM {
+function New-ClientVM {
     [cmdletBinding()]
     param (
-        [string]$vmname,
-        [string]$refvhdx,
-        [string]$clientpath,
-        [string]$localadmin,
-        [string]$refAPVHDX
+        [string]$vmName,
+        [string]$refVHDX,
+        [string]$clientPath,
+        [pscredential]$localAdmin,
+        [string]$refApVHDX
     )
-    copy-item -Path $RefVHDX -Destination "$ClientPath\$vmname.vhdx"
-    new-vm -Name $vmname -MemoryStartupBytes 8Gb -VHDPath "$ClientPath\$vmname.vhdx" -Generation 2 | out-null
-    Enable-VMIntegrationService -VMName $vmname -Name "Guest Service Interface"
-    set-vm -name $vmname -CheckpointType Disabled
-    start-vm -Name $vmname
-    Get-VMNetworkAdapter -vmname $vmname | Connect-VMNetworkAdapter -SwitchName 'Internet' | Set-VMNetworkAdapter -Name 'Internet' -DeviceNaming On
-    while ((Invoke-Command -VMName $vmname -Credential $localadmin {"Test"} -ErrorAction SilentlyContinue) -ne "Test") {Start-Sleep -Seconds 5}
-    $wkssession = new-PSSession -VMName $vmname -Credential $localadmin
-    $ap = Invoke-Command -Session $wkssession -ScriptBlock {Install-PackageProvider -name "nuget" -ForceBootstrap -Force | Out-Null; Install-Script -Name "get-windowsautopilotinfo" -Force; Set-ExecutionPolicy -ExecutionPolicy Bypass -Force; get-windowsautopilotinfo.ps1}
-    $ap | Select-Object 'Device Serial Number', 'Windows Product ID', 'hardware hash' | export-csv -path "$clientpath\ap.csv" -NoTypeInformation -append
-    Stop-VM -Name $vmname -TurnOff -Force
-    copy-item -path $refAPVHDX -Destination "$ClientPath\$vmname.vhdx"
+    Copy-Item -Path $refVHDX -Destination "$clientPath\$vmName.vhdx"
+    new-vm -Name $vmName -MemoryStartupBytes 2Gb -VHDPath "$clientPath\$vmName.vhdx" -Generation 2 | out-null
+    Enable-VMIntegrationService -vmName $vmName -Name "Guest Service Interface"
+    set-vm -name $vmName -CheckpointType Disabled
+    start-vm -Name $vmName
+    Get-VMNetworkAdapter -vmName $vmName | Connect-VMNetworkAdapter -SwitchName 'Internet' | Set-VMNetworkAdapter -Name 'Internet' -DeviceNaming On
+    while ((Invoke-Command -vmName $vmName -Credential $localAdmin {"Test"} -ErrorAction SilentlyContinue) -ne "Test") {Start-Sleep -Seconds 5}
+    $wkSession = new-PSSession -vmName $vmName -Credential $localAdmin
+
+    $serial = Invoke-Command -Session $wkSession -ScriptBlock {(Get-WmiObject -Class Win32_BIOS).SerialNumber}
+    $hash = Invoke-Command -Session $wkSession -ScriptBlock {(Get-WMIObject -Namespace root/cimv2/mdm/dmmap -Class MDM_DevDetail_Ext01 -Filter "InstanceID='Ext' AND ParentID='./DevDetail'").DeviceHardwareData}
+    #$ap = Invoke-Command -Session $wkSession -ScriptBlock {Install-PackageProvider -name "nuget" -ForceBootstrap -Force | Out-Null; Install-Script -Name "get-windowsautopilotinfo" -Force; Set-ExecutionPolicy -ExecutionPolicy Bypass -Force; get-windowsautopilotinfo.ps1}
+    $ap = [PSCustomObject]@{
+        "Device Serial Number" = $serial
+        "Windows Product ID" = ""
+        "Hardware Hash" = $hash
+    }
+    Stop-VM -Name $vmName -TurnOff -Force
+    copy-item -path $refApVHDX -Destination "$clientPath\$vmName.vhdx"
+    return $ap
 }
-
-$scriptpath = $PSScriptRoot
-$config = Get-Content "$scriptpath\client.json" -Raw | ConvertFrom-Json
-$ClientDetails = $config.ENVConfig | Where-Object {$_.ClientName -eq $config.Client}
-$ClientPath = "$($config.ClientVMPath)\$($config.Client)"
-if (!(Test-Path $ClientPath)) {new-item -ItemType Directory -Force -Path $ClientPath | Out-Null}
-$script:logfile = "$ClientPath\Build.log"
-$RefVHDX = $config.Win10VHDX
-Write-LogEntry -Type Information -Message "Path to Reference VHDX is: $RefVHDX"
-$refAPVHDX = $config.Win10APVHDX
-Write-LogEntry -Type Information -Message "Path to AutoPilot Reference VHDX is: $refAPVHDX"
-$clientname = $ClientDetails.ClientName
-Write-LogEntry -Type Information -Message "Client name is: $clientname"
+#endregion
+#region Config
+$scriptPath = $PSScriptRoot
+$config = Get-Content "$scriptPath\client.json" -Raw | ConvertFrom-Json
+$clientDetails = $config.ENVConfig | Where-Object {$_.ClientName -eq $config.Client}
+$clientPath = "$($config.ClientVMPath)\$($config.Client)"
+if (!(Test-Path $clientPath)) {new-item -ItemType Directory -Force -Path $clientPath | Out-Null}
+$script:logfile = "$clientPath\Build.log"
+$refVHDX = $config.Win10VHDX
+$refApVHDX = $config.Win10APVHDX
+$clientName = $clientDetails.ClientName
 $win10iso = $config.Win101803ISO
-Write-LogEntry -Type Information -Message "Win10 ISO is located: $win10iso"
-$defaultclientpassword = $config.defaultpassword
-Write-LogEntry -Type Information -Message "Default Password is: $defaultclientpassword"
-$localadmin = new-object -typename System.Management.Automation.PSCredential -argumentlist "administrator", (ConvertTo-SecureString -String $defaultclientpassword -AsPlainText -Force)
-Write-LogEntry -Type Information -Message "Path to client VMs will be: $clientpath"
-$numofVMs = $ClientDetails.NumberofClients
-Write-LogEntry -Type Information -Message "Number of VMs to create: $numofvms"
-$adminuser = $ClientDetails.adminuser
-Write-LogEntry -type Information -Message "Admin user for tenant: $clientname is: $adminuser"
-$aadsecgroup = $ClientDetails.AADDynGroupName
-Write-LogEntry -Type Information -Message "AAD Security group name is: $aadsecgroup"
+$defaultClientPassword = $config.defaultpassword
+$localAdmin = new-object -typename System.Management.Automation.PSCredential -argumentlist "administrator", (ConvertTo-SecureString -String $defaultClientPassword -AsPlainText -Force)
+$numOfVMs = $clientDetails.NumberofClients
+$adminUser = $clientDetails.adminuser
+$aadsecgroup = $clientDetails.AADDynGroupName
 $APOrderNumber = $config.OrderNumber
+Write-LogEntry -Type Information -Message "Path to Reference VHDX is: $refVHDX"
+Write-LogEntry -Type Information -Message "Path to AutoPilot Reference VHDX is: $refApVHDX"
+Write-LogEntry -Type Information -Message "Client name is: $clientName"
+Write-LogEntry -Type Information -Message "Win10 ISO is located: $win10iso"
+Write-LogEntry -Type Information -Message "Default Password is: $defaultClientPassword"
+Write-LogEntry -Type Information -Message "Path to client VMs will be: $clientPath"
+Write-LogEntry -Type Information -Message "Number of VMs to create: $numOfVMs"
+Write-LogEntry -type Information -Message "Admin user for tenant: $clientName is: $adminUser"
+Write-LogEntry -Type Information -Message "AAD Security group name is: $aadsecgroup"
 Write-LogEntry -Type Information -Message "Auto Pilot order number is: $APOrderNumber"
-
-if (!(test-path -path $RefVHDX -ErrorAction SilentlyContinue)) {
+#endregion
+#region New ClientVHDX
+if (!(test-path -path $refVHDX -ErrorAction SilentlyContinue)) {
     Write-LogEntry -Type Information -Message "Creating Workstation VHDX"
-    new-ClientVHDX -vhdxpath $refvhdx -unattend "$scriptpath\wks-unattended.xml" -winiso $win10iso
+    new-ClientVHDX -vhdxpath $refVHDX -unattend "$scriptPath\wks-unattended.xml" -winiso $win10iso
     Write-LogEntry -Type Information -Message "Workstation VHDX has been created"
 }
-if (!(test-path -path $RefapVHDX -ErrorAction SilentlyContinue)) {
+if (!(test-path -path $refApVHDX -ErrorAction SilentlyContinue)) {
     Write-LogEntry -Type Information -Message "Creating Workstation AutoPilot VHDX"
-    new-ClientVHDX -vhdxpath $refapvhdx -winiso $win10iso
+    new-ClientVHDX -vhdxpath $refApVHDX -winiso $win10iso
     Write-LogEntry -Type Information -Message "Workstation AutoPilot VHDX has been created"
 }
-
-if (!(test-path -Path $ClientPath)) {New-Item -ItemType Directory -Force -Path $ClientPath}
-if (!$numofVMs -gt 1) {
-    $vmname = "$($clientname)ap$numofvms"
-    new-clientVM -vmname $vmname -refvhdx $RefVHDX -clientpath $ClientPath -localadmin $localadmin -refAPVHDX $refAPVHDX
+#endregion
+#region New Client VM
+$apOut = @()
+if (!(test-path -Path $clientPath)) {New-Item -ItemType Directory -Force -Path $clientPath}
+if ($numOfVMs -eq 1) {
+    $vmName = "$($clientName)ap$numOfVMs"
+    $AP = new-clientVM -vmName $vmName -refVHDX $refVHDX -clientpath $clientPath -localAdmin $localAdmin -refAPVHDX $refApVHDX
+    $ap | Out-File -FilePath "$clientPath\ap$numOfVMs.csv"
+    $apOut += $ap
 }
 else {
     $vnum = 1
-    while ($vnum -ne ($numofVMs + 1)) {
-        $vmname = "$($clientname)ap$vnum"
-        new-clientVM -vmname $vmname -refvhdx $RefVHDX -clientpath $ClientPath -localadmin $localadmin -refAPVHDX $refAPVHDX
+    while ($vnum -ne ($numOfVMs + 1)) {
+        $vmName = "$($clientName)ap$vnum"
+        $apOut += new-clientVM -vmName $vmName -refVHDX $refVHDX -clientpath $clientPath -localAdmin $localAdmin -refAPVHDX $refApVHDX
         $vnum++
     }
 }
+#endregion
+#region Device Enrolment
+($apOut | Select-Object 'Device Serial Number', 'Windows Product ID', 'hardware hash' | convertto-csv -NoTypeInformation ) -replace "`"", "" | out-file "$clientPath\ap.csv" -append
 if ((get-module -listavailable -name AzureADPreview).count -ne 1) {
     install-module -name AzureADPreview -scope allusers -Force -AllowClobber
 }
@@ -146,16 +166,18 @@ else {
     update-module -name WindowsAutoPilotIntune
 }
 import-module -name WindowsAutoPilotIntune
-Set-Clipboard $adminuser
+Set-Clipboard $adminUser
+Write-LogEntry -Message "admin user email added to clipboard: $adminUser"
 connect-azuread
-$apcontent = Import-Csv "$clientpath\ap.csv"
-Connect-AutoPilotIntune -user $adminuser | Out-Null
-Import-AutoPilotCSV -csvFile "$ClientPath\ap.csv" -orderIdentifier $APOrderNumber
+$apContent = Import-Csv "$clientPath\ap.csv"
+Connect-AutoPilotIntune -user $adminUser | Out-Null
+Import-AutoPilotCSV -csvFile "$clientPath\ap.csv"
 $grp = get-azureadgroup -SearchString $aadsecgroup
-foreach ($ap in $apcontent) {
-    while ((Get-AzureADDevice -SearchString $ap.'Device Serial Number').count -ne 1) {Start-Sleep -Seconds 10}
+foreach ($ap in $apContent) {
+    while ((Get-AzureADDevice -SearchString $ap.'Device Serial Number').count -ne 1) {
+        Start-Sleep -Seconds 10
+    }
     $device = Get-AzureADDevice -SearchString $ap.'Device Serial Number'
     Add-AzureADGroupMember -ObjectId $grp.objectid -RefObjectId $device.objectid
 }
-#Start-Sleep -Seconds 600
-#get-vm "$($clientname)ap*" | start-vm
+#endregion
