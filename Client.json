@@ -1,27 +1,19 @@
 {
     "Client": "hosking",
-    "Win10VHDX":"f:\\clientvms\\wksref.vhdx",
-    "Win10APVHDX":"f:\\clientvms\\wksAPref.vhdx",
-    "Win101803ISO":"f:\\data\\software\\microsoft\\Win101803\\en_windows_10_business_editions_version_1803_updated_march_2018_x64_dvd_12063333.iso",
-    "Win101709ISO":"f:\\data\\software\\microsoft\\Win101709\\en_windows_10_multi-edition_vl_version_1709_updated_sept_2017_x64_dvd_100090741.iso",
-    "ClientVMPath":"f:\\clientvms",
-    "defaultpassword":"P@ssw0rd",
-    "OrderNumber":"SHOPCG",
+    "Win10APVHDX":"<pathtovms>\\wksAPref.vhdx",
+    "Win101803ISO":"<pathtomedia>\\Win101803\\en_windows_10_business_editions_version_1803_updated_march_2018_x64_dvd_12063333.iso",
+    "Win101809ISO":"<pathtomedia>\\Win101809\\SW_DVD9_Win_Pro_Ent_Edu_N_10_1809_64-bit_English_MLF_X21-96501.iso",
+    "ClientVMPath":"<pathtovms>",
     "ENVConfig": [
         {
             "ClientName":"onpremcloudguy",
             "NumberofClients":2,
-            "W10Ver":"1803",
-            "AdminUser":"shosking@onpremcloudguy.com.au",
-            "AADDynGroupName":"AutoPilot Devices"
+            "AdminUser":"shosking@onpremcloudguy.com.au"
         },
         {
             "ClientName":"HOSKING",
             "NumberofClients":2,
-            "W10Ver":"1803",
-            "AdminUser":"testaccount@hosking.com.au",
-            "AADDynGroupName":"AutoPilot Devices"
+            "AdminUser":"testaccount@hosking.com.au"
         }
-
     ]
 }
