@@ -1,3 +1,4 @@
+#$ErrorActionPreference = "Stop"
 #region Functions
 function New-ClientVHDX {
     param
@@ -58,7 +59,7 @@ function Write-LogEntry {
         "file=`"$($scriptName.ScriptName)`">";
         
     $logLine | Out-File -Append -Encoding utf8 -FilePath $logFile -Force
-    Write-Host $Message -ForegroundColor $fgColor
+    #Write-Host $Message -ForegroundColor $fgColor
 }
 function New-ClientVM {
     [cmdletBinding()]
@@ -72,7 +73,7 @@ function New-ClientVM {
     $disk = (Mount-VHD -Path "$clientPath\$vmName.vhdx" -Passthru | Get-disk | Get-Partition | Where-Object {$_.type -eq 'Basic'}).DriveLetter
     copy-item -path "$clientPath\" -Destination "$disk`:\Windows\Provisioning\Autopilot\" -Recurse -Filter "AutopilotConfigurationFile.json"
     dismount-vhd "$clientPath\$vmName.vhdx"
-    new-vm -Name $vmName -MemoryStartupBytes 2Gb -VHDPath "$clientPath\$vmName.vhdx" -Generation 2 | out-null
+    new-vm -Name $vmName -MemoryStartupBytes 8Gb -VHDPath "$clientPath\$vmName.vhdx" -Generation 2 | out-null
     Enable-VMIntegrationService -vmName $vmName -Name "Guest Service Interface"
     set-vm -name $vmName -CheckpointType Disabled
     start-vm -Name $vmName
@@ -113,7 +114,15 @@ if (!(Test-path -path "$clientPath\AutopilotConfigurationFile.json" -ErrorAction
     }
     import-module -name WindowsAutoPilotIntune
     Connect-AutoPilotIntune -user $adminUser
-    Get-AutoPilotProfile | ConvertTo-AutoPilotConfigurationJSON | Out-File "$clientPath\AutopilotConfigurationFile.json" -Encoding ascii
+    $appolicies = Get-AutoPilotProfile
+    if($appolicies.count -gt 1)
+    {
+        $appol = $appolicies | Out-GridView -PassThru
+    }
+    else {
+        $appol = $appolicies
+    }
+    $appol | ConvertTo-AutoPilotConfigurationJSON | Out-File "$clientPath\AutopilotConfigurationFile.json" -Encoding ascii
 }
 #endregion
 #region New Client VM
@@ -127,9 +136,12 @@ if ($numOfVMs -eq 1) {
 }
 else {
     $vnum = 1
-    while ($vnum -ne ($numOfVMs + 1)) {
-        $vmName = "$($clientName)ap$vnum"
-        $apOut += new-clientVM -vmName $vmName -clientpath $clientPath -localAdmin $localAdmin -refAPVHDX $refApVHDX
+    $existingvms = (get-vm -name "$($clientname)ap*").name -replace "$($clientname)ap"
+    while ($vnum -ne ($numOfVMs + 1 + $existingvms.Count)) {
+        if (!($vnum -in $existingvms)) {
+            $vmName = "$($clientName)ap$vnum"
+            $apOut += new-clientVM -vmName $vmName -clientpath $clientPath -localAdmin $localAdmin -refAPVHDX $refApVHDX
+        }
         $vnum++
     }
 }
